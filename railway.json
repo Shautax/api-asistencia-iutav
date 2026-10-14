@@ -1,10 +1,7 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "deploy": {
-    "preDeployCommand": [
-      "npm run setup-db"
-    ],
-    "startCommand": "npm start",
+    "startCommand": "npm run setup-db && npm start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",

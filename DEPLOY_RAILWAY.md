@@ -1,6 +1,6 @@
 # Despliegue en Railway (API + MySQL)
 
-El repositorio ya trae `railway.json`: en cada despliegue Railway ejecuta `npm run setup-db`
+El repositorio ya trae `railway.json`: al arrancar, Railway ejecuta `npm run setup-db`
 (crea o migra las tablas, no borra datos) y luego `npm start`, con health check en `/`.
 
 ## 1. Crear el proyecto
