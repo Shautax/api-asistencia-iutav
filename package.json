@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node setup_db.js && node index.js",
     "dev": "node --watch index.js",
     "setup-db": "node setup_db.js",
     "reset-db": "node scripts/reset_db.js",
