@@ -1,0 +1,33 @@
+{
+  "name": "api-asistencia",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "setup-db": "node setup_db.js",
+    "reset-db": "node scripts/reset_db.js",
+    "seed-coordinador": "node seed_coordinador.js",
+    "seed-test-users": "node seed_test_users.js",
+    "seed-demo": "node seed_demo.js",
+    "seed-carreras": "node seed_carreras.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "mysql2": "^3.24.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
