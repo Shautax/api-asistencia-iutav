@@ -37,11 +37,13 @@ const registro = async (req, res, next) => {
       if (!permitidos.includes(rol)) {
         return res.status(400).json({ ok: false, message: `rol inválido. Valores permitidos: ${permitidos.join(', ')}` });
       }
-    } else if (req.body.rol != null) {
-      if (!Object.hasOwn(ROLES_PUBLICOS, req.body.rol)) {
+    } else if (req.body.rol != null && String(req.body.rol).trim() !== '') {
+      // Tolera mayúsculas y espacios ("Profesor ", "ALUMNO")
+      const rolPublico = String(req.body.rol).trim().toLowerCase();
+      if (!Object.hasOwn(ROLES_PUBLICOS, rolPublico)) {
         return res.status(400).json({ ok: false, message: `rol inválido. Valores permitidos: ${Object.keys(ROLES_PUBLICOS).join(', ')}` });
       }
-      rol = ROLES_PUBLICOS[req.body.rol];
+      rol = ROLES_PUBLICOS[rolPublico];
     }
     // El profesor que se registra solo no entra hasta que un coordinador lo apruebe
     if (!registraCoordinador && rol === ROLES.PROFESOR) {
@@ -50,6 +52,7 @@ const registro = async (req, res, next) => {
 
     // Carrera y semestre del estudiante: definen qué materias puede ver e inscribir.
     // Obligatorios en el registro público (app); un coordinador puede omitirlos.
+    // Para profesores (y cualquier rol que no sea estudiante) se ignoran y se guardan como NULL.
     let carreraId = null;
     let semestreNum = null;
     if (rol === ROLES.ESTUDIANTE && (!registraCoordinador || carrera_id != null || semestre != null)) {
