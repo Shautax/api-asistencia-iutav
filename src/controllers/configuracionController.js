@@ -1,26 +1,39 @@
-const net = require('net');
 const { pool } = require('../config/db');
-const { esCidrIpv4 } = require('../utils/ip');
 
-// La configuración de red es una sola fila (id = 1), creada por setup_db.js
+// La configuración de la geocerca es una sola fila (id = 1), creada por setup_db.js
 const CONFIG_RED_ID = 1;
-// Un SSID de Wi-Fi tiene como máximo 32 bytes (estándar 802.11)
-const MAX_BYTES_SSID = 32;
+// Límites del radio de la geocerca, en metros
+const RADIO_MINIMO = 10;
+const RADIO_MAXIMO = 5000;
 
+// Número (o texto numérico) dentro de [-limite, limite]: 90 para latitud, 180 para longitud
+const coordenadaValida = (valor, limite) =>
+  (typeof valor === 'number' || (typeof valor === 'string' && valor.trim() !== '')) &&
+  Number.isFinite(Number(valor)) &&
+  Math.abs(Number(valor)) <= limite;
+
+// mysql2 devuelve las columnas DECIMAL como texto: se convierten a número (NULL = sin configurar)
 const obtenerRedConfigurada = async () => {
   const [filas] = await pool.query(
-    'SELECT id, ssid_permitido, ip_permitida FROM configuracion_red WHERE id = ?',
+    'SELECT id, latitud, longitud, radio_permitido FROM configuracion_red WHERE id = ?',
     [CONFIG_RED_ID]
   );
-  return filas[0] || null;
+  const fila = filas[0];
+  if (!fila) return null;
+  return {
+    id: fila.id,
+    latitud: fila.latitud === null ? null : Number(fila.latitud),
+    longitud: fila.longitud === null ? null : Number(fila.longitud),
+    radio_permitido: fila.radio_permitido,
+  };
 };
 
-// Coordinador master: devuelve la red Wi-Fi desde la que se permite marcar asistencia
+// Coordinador master: devuelve la geocerca (centro y radio) dentro de la que se permite marcar asistencia
 const getConfiguracionRed = async (req, res, next) => {
   try {
     const red = await obtenerRedConfigurada();
     if (!red) {
-      return res.status(404).json({ ok: false, message: 'No hay una red configurada. Ejecuta npm run setup-db' });
+      return res.status(404).json({ ok: false, message: 'No hay una geocerca configurada. Ejecuta npm run setup-db' });
     }
 
     res.json({ ok: true, red });
@@ -29,34 +42,34 @@ const getConfiguracionRed = async (req, res, next) => {
   }
 };
 
-// Coordinador master: cambia el SSID y la IP permitidos
+// Coordinador master: cambia la ubicación de la sede y el radio permitido
 const actualizarConfiguracionRed = async (req, res, next) => {
   try {
-    const { ssid_permitido, ip_permitida } = req.body || {};
+    const { latitud, longitud, radio_permitido } = req.body || {};
 
-    if (typeof ssid_permitido !== 'string' || typeof ip_permitida !== 'string' || !ssid_permitido || !ip_permitida) {
-      return res.status(400).json({ ok: false, message: 'ssid_permitido e ip_permitida son obligatorios' });
+    if (!coordenadaValida(latitud, 90)) {
+      return res.status(400).json({ ok: false, message: 'latitud es obligatoria y debe estar entre -90 y 90' });
     }
-    if (Buffer.byteLength(ssid_permitido, 'utf8') > MAX_BYTES_SSID) {
-      return res.status(400).json({ ok: false, message: `El SSID no puede superar los ${MAX_BYTES_SSID} bytes` });
+    if (!coordenadaValida(longitud, 180)) {
+      return res.status(400).json({ ok: false, message: 'longitud es obligatoria y debe estar entre -180 y 180' });
     }
-    if (!net.isIP(ip_permitida) && !esCidrIpv4(ip_permitida)) {
+    const radio = Number(radio_permitido);
+    if (!Number.isInteger(radio) || radio < RADIO_MINIMO || radio > RADIO_MAXIMO) {
       return res.status(400).json({
         ok: false,
-        message: 'ip_permitida debe ser una IP o un rango CIDR IPv4 válido (ej. 192.168.43.0/24)',
+        message: `radio_permitido es obligatorio y debe ser un número entero de metros entre ${RADIO_MINIMO} y ${RADIO_MAXIMO}`,
       });
     }
 
-    // Se guarda tal cual: redMiddleware comprueba que la IP del teléfono pertenezca al rango
     await pool.query(
-      `INSERT INTO configuracion_red (id, ssid_permitido, ip_permitida) VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE ssid_permitido = VALUES(ssid_permitido), ip_permitida = VALUES(ip_permitida)`,
-      [CONFIG_RED_ID, ssid_permitido, ip_permitida]
+      `INSERT INTO configuracion_red (id, latitud, longitud, radio_permitido) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE latitud = VALUES(latitud), longitud = VALUES(longitud), radio_permitido = VALUES(radio_permitido)`,
+      [CONFIG_RED_ID, Number(latitud), Number(longitud), radio]
     );
 
     res.json({
       ok: true,
-      message: 'Configuración de red actualizada',
+      message: 'Geocerca de la sede actualizada',
       red: await obtenerRedConfigurada(),
     });
   } catch (error) {
@@ -64,4 +77,4 @@ const actualizarConfiguracionRed = async (req, res, next) => {
   }
 };
 
-module.exports = { obtenerRedConfigurada, getConfiguracionRed, actualizarConfiguracionRed };
+module.exports = { coordenadaValida, obtenerRedConfigurada, getConfiguracionRed, actualizarConfiguracionRed };

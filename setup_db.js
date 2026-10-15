@@ -71,6 +71,17 @@ async function setup() {
       }
     }
 
+    // asistencias.ssid_validado pasó a llamarse ubicacion_validada (validación por GPS en vez de Wi-Fi).
+    // Se usa CHANGE en lugar de RENAME COLUMN por compatibilidad con MariaDB 10.4
+    const [columnaSsid] = await connection.query(
+      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'asistencias' AND COLUMN_NAME = 'ssid_validado'",
+      [DB_NAME]
+    );
+    if (columnaSsid.length > 0) {
+      await connection.query('ALTER TABLE asistencias CHANGE ssid_validado ubicacion_validada BOOLEAN NOT NULL DEFAULT FALSE');
+      console.log('Columna asistencias.ssid_validado renombrada a ubicacion_validada.');
+    }
+
     // Los coordinadores que solicitan acceso desde el panel no tienen cédula: pasa a ser opcional
     const [[columnaCedula]] = await connection.query(
       "SELECT IS_NULLABLE AS nullable FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'usuarios' AND COLUMN_NAME = 'cedula'",

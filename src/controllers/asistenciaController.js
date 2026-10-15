@@ -1,35 +1,15 @@
 const { pool } = require('../config/db');
 const { LIMITE_FALTAS_AVISO } = require('../config/reglas');
 const { ROLES } = require('../config/roles');
-const { ipEnRango, normalizarIp } = require('../utils/ip');
-
-// Opcional: IPs o rangos CIDR IPv4 desde los que debe llegar la petición al servidor,
-// ej: INSTITUTE_IP=200.44.32.12,127.0.0.1,192.168.100.0/24. Si no se define, no se aplica este filtro.
-// El SSID y la IP de la red Wi-Fi se validan aparte contra configuracion_red (ver redMiddleware).
-const IPS_INSTITUTO = (process.env.INSTITUTE_IP || '').split(',').map((ip) => ip.trim()).filter(Boolean);
-
-const ipPermitida = (ip) => IPS_INSTITUTO.length === 0 || IPS_INSTITUTO.some((entrada) => ipEnRango(ip, entrada));
-
-// req.ip ya toma en cuenta X-Forwarded-For cuando 'trust proxy' está configurado (ver TRUST_PROXY en index.js).
-// No se lee la cabecera directamente porque cualquier cliente puede falsificarla.
-const getClientIp = (req) => normalizarIp(req.ip || req.socket.remoteAddress);
 
 const registrarAsistencia = async (req, res, next) => {
   try {
-    // ssid_actual e ip_actual ya los validó redMiddleware contra configuracion_red
+    // La ubicación (latitud, longitud) ya la validó geocercaMiddleware contra configuracion_red
     const { qr_token } = req.body || {};
     const estudianteId = req.usuario.id;
 
     if (!qr_token) {
       return res.status(400).json({ ok: false, message: 'qr_token es obligatorio' });
-    }
-
-    // La petición debe venir desde la red del instituto
-    if (!ipPermitida(getClientIp(req))) {
-      return res.status(403).json({
-        ok: false,
-        message: 'Acceso denegado: El registro debe hacerse desde la red del instituto',
-      });
     }
 
     // Validación 1: la clase existe y está abierta
@@ -58,7 +38,7 @@ const registrarAsistencia = async (req, res, next) => {
     }
 
     const [result] = await pool.query(
-      "INSERT INTO asistencias (clase_id, estudiante_id, estado, ssid_validado) VALUES (?, ?, 'presente', TRUE)",
+      "INSERT INTO asistencias (clase_id, estudiante_id, estado, ubicacion_validada) VALUES (?, ?, 'presente', TRUE)",
       [clase.id, estudianteId]
     );
 

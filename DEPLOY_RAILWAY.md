@@ -33,7 +33,7 @@ NODE_ENV=production
 - `JWT_SECRET`: genera uno con `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`.
   No reutilices el de tu `.env` local.
 - `DB_TIMEZONE` y `TZ`: Railway corre en UTC; sin ellas las clases quedarían 4 horas adelantadas.
-- **No** definas `PORT` (lo pone Railway) ni `INSTITUTE_IP=127.0.0.1` (bloquearía todas las asistencias).
+- **No** definas `PORT` (lo pone Railway).
 
 ## 3. Volumen para los justificativos
 Los archivos subidos se guardan en disco y Railway lo borra en cada despliegue.

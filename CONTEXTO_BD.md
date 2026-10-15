@@ -94,7 +94,7 @@ Los estudiantes se inscriben por catálogo: solo en materias con `carrera_id` y 
 | clase_id | INT FK → clases.id | |
 | estudiante_id | INT FK → usuarios.id | |
 | estado | ENUM('presente','ausente','justificado') | |
-| ssid_validado | TINYINT(1) | 1 = el estudiante registró su asistencia escaneando el QR; 0 = fila de ausente creada al cerrar la clase (nombre heredado de la antigua validación por Wi-Fi) |
+| ubicacion_validada | TINYINT(1) | 1 = el estudiante registró su asistencia escaneando el QR dentro de la geocerca; 0 = fila de ausente creada al cerrar la clase |
 Única por (clase_id, estudiante_id).
 
 ### `justificativos`

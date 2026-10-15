@@ -74,7 +74,7 @@ const cerrarClase = async (req, res, next) => {
     if (faltantes.length > 0) {
       const ids = faltantes.map((f) => f.estudiante_id);
       await connection.query(
-        'INSERT INTO asistencias (clase_id, estudiante_id, estado, ssid_validado) VALUES ?',
+        'INSERT INTO asistencias (clase_id, estudiante_id, estado, ubicacion_validada) VALUES ?',
         [ids.map((estudianteId) => [clase.id, estudianteId, 'ausente', false])]
       );
       await connection.query(

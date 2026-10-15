@@ -160,7 +160,7 @@ async function crear() {
           }
 
           const [asis] = await pool.query(
-            'INSERT INTO asistencias (clase_id, estudiante_id, estado, ssid_validado) VALUES (?, ?, ?, ?)',
+            'INSERT INTO asistencias (clase_id, estudiante_id, estado, ubicacion_validada) VALUES (?, ?, ?, ?)',
             [clase.insertId, idsEstudiantes[i], estado, asistio]
           );
           totalAsistencias++;

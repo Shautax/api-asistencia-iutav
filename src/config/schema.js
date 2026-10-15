@@ -84,7 +84,8 @@ const TABLAS = [
       clase_id INT NOT NULL,
       estudiante_id INT NOT NULL,
       estado ENUM('presente', 'ausente', 'justificado') NOT NULL DEFAULT 'presente',
-      ssid_validado BOOLEAN NOT NULL DEFAULT FALSE,
+      -- TRUE = el estudiante marcó con el QR (dentro de la geocerca); FALSE = ausente creado al cerrar la clase
+      ubicacion_validada BOOLEAN NOT NULL DEFAULT FALSE,
       UNIQUE KEY uq_clase_estudiante (clase_id, estudiante_id),
       FOREIGN KEY (clase_id) REFERENCES clases(id) ON DELETE CASCADE ON UPDATE CASCADE,
       FOREIGN KEY (estudiante_id) REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE
