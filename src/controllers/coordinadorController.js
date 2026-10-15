@@ -5,9 +5,17 @@ const { ROLES, COORDINADORES } = require('../config/roles');
 
 const LARGO_MINIMO_PASSWORD = 6;
 
-// Roles que pueden quedar 'pendiente' y que el master aprueba o rechaza desde el panel:
+// Roles que pueden quedar 'pendiente' y que se aprueban o rechazan desde el panel:
 // coordinadores que pidieron acceso y profesores/estudiantes registrados desde la app
 const ROLES_SOLICITUD = [ROLES.COORDINADOR_CARRERA, ROLES.PROFESOR, ROLES.ESTUDIANTE];
+
+// Solicitudes que puede gestionar cada coordinador: solo el master aprueba a otros coordinadores
+const rolesSolicitudPermitidos = (rolSolicitante) =>
+  rolSolicitante === ROLES.COORDINADOR_MASTER
+    ? ROLES_SOLICITUD
+    : ROLES_SOLICITUD.filter((rol) => rol !== ROLES.COORDINADOR_CARRERA);
+
+const MENSAJE_SOLO_MASTER = 'Solo el Coordinador Master puede aprobar o rechazar a otros coordinadores';
 
 const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -226,12 +234,12 @@ const solicitarAcceso = async (req, res, next) => {
   }
 };
 
-// Coordinador master: solicitudes de acceso pendientes
+// Coordinadores: solicitudes de acceso pendientes (el de carrera no ve las de otros coordinadores)
 const listarSolicitudes = async (req, res, next) => {
   try {
     const [solicitudes] = await pool.query(
       "SELECT id, cedula, nombre, correo, rol FROM usuarios WHERE estado = 'pendiente' AND rol IN (?) ORDER BY id",
-      [ROLES_SOLICITUD]
+      [rolesSolicitudPermitidos(req.usuario.rol)]
     );
     res.json({ ok: true, total: solicitudes.length, solicitudes });
   } catch (error) {
@@ -239,8 +247,8 @@ const listarSolicitudes = async (req, res, next) => {
   }
 };
 
-// Coordinador master: aprueba una solicitud. Al coordinador de carrera se le asigna la carrera
-// que administrará (carrera_id obligatorio); profesores y estudiantes solo pasan a 'aprobado'.
+// Coordinadores: aprueban una solicitud. Al coordinador de carrera (solo lo aprueba el master) se le
+// asigna la carrera que administrará (carrera_id obligatorio); profesores y estudiantes solo pasan a 'aprobado'.
 const aprobarSolicitud = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -253,6 +261,9 @@ const aprobarSolicitud = async (req, res, next) => {
       return res.status(404).json({ ok: false, message: 'La solicitud no existe o ya fue procesada' });
     }
     const { rol } = solicitudes[0];
+    if (!rolesSolicitudPermitidos(req.usuario.rol).includes(rol)) {
+      return res.status(403).json({ ok: false, message: MENSAJE_SOLO_MASTER });
+    }
 
     if (rol !== ROLES.COORDINADOR_CARRERA) {
       const [result] = await pool.query(
@@ -288,12 +299,24 @@ const aprobarSolicitud = async (req, res, next) => {
   }
 };
 
-// Coordinador master: rechaza una solicitud (se elimina, así el correo puede volver a solicitar acceso)
+// Coordinadores: rechazan una solicitud (se elimina, así el correo puede volver a solicitar acceso)
 const rechazarSolicitud = async (req, res, next) => {
   try {
+    const id = Number(req.params.id);
+    const [solicitudes] = await pool.query(
+      "SELECT rol FROM usuarios WHERE id = ? AND estado = 'pendiente' AND rol IN (?)",
+      [id, ROLES_SOLICITUD]
+    );
+    if (solicitudes.length === 0) {
+      return res.status(404).json({ ok: false, message: 'La solicitud no existe o ya fue procesada' });
+    }
+    if (!rolesSolicitudPermitidos(req.usuario.rol).includes(solicitudes[0].rol)) {
+      return res.status(403).json({ ok: false, message: MENSAJE_SOLO_MASTER });
+    }
+
     const [result] = await pool.query(
-      "DELETE FROM usuarios WHERE id = ? AND estado = 'pendiente' AND rol IN (?)",
-      [Number(req.params.id), ROLES_SOLICITUD]
+      "DELETE FROM usuarios WHERE id = ? AND estado = 'pendiente' AND rol = ?",
+      [id, solicitudes[0].rol]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, message: 'La solicitud no existe o ya fue procesada' });
