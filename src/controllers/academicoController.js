@@ -225,13 +225,15 @@ const misMaterias = async (req, res, next) => {
     const tablaRelacion = rol === 'profesor' ? 'profesor_materia' : 'estudiante_materia';
     const columnaUsuario = rol === 'profesor' ? 'profesor_id' : 'estudiante_id';
 
-    // El profesor necesita el código de inscripción para compartirlo con sus estudiantes
+    // El profesor necesita el código de inscripción para compartirlo con sus estudiantes.
+    // La carrera distingue materias homónimas (ej. "Inglés I" de Informática y de Administración).
     const [materias] = await pool.query(
-      `SELECT m.id, m.nombre${rol === 'profesor' ? ', m.codigo_inscripcion, m.inscripciones_abiertas' : ''}
+      `SELECT m.id, m.nombre, m.carrera_id, car.nombre AS nombre_carrera${rol === 'profesor' ? ', m.codigo_inscripcion, m.inscripciones_abiertas' : ''}
        FROM ${tablaRelacion} r
        INNER JOIN materias m ON m.id = r.materia_id
+       INNER JOIN carreras car ON car.id = m.carrera_id
        WHERE r.${columnaUsuario} = ?
-       ORDER BY m.nombre`,
+       ORDER BY m.nombre, car.nombre`,
       [id]
     );
 
