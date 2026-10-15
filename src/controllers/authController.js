@@ -11,6 +11,12 @@ const ROLES_ASIGNABLES = {
   [ROLES.COORDINADOR_CARRERA]: [ROLES.ESTUDIANTE, ROLES.PROFESOR],
 };
 
+// Valores de rol que acepta el registro público (app móvil) y el rol con que se guardan
+const ROLES_PUBLICOS = {
+  alumno: ROLES.ESTUDIANTE,
+  profesor: ROLES.PROFESOR,
+};
+
 const registro = async (req, res, next) => {
   try {
     const { cedula, nombre, correo, password, carrera_id, semestre } = req.body || {};
@@ -19,17 +25,27 @@ const registro = async (req, res, next) => {
       return res.status(400).json({ ok: false, message: 'cedula, nombre, correo y password son obligatorios' });
     }
 
-    // Solo un coordinador autenticado puede asignar roles; el registro público siempre crea estudiantes
+    // Un coordinador autenticado asigna roles según su tipo (solo el master crea coordinadores).
+    // El registro público (app) solo admite alumno o profesor; sin rol se asume estudiante
     const solicitante = getTokenPayload(req);
     const registraCoordinador = Boolean(solicitante && esCoordinador(solicitante.rol));
-    // Solo el coordinador master puede crear otros coordinadores
     let rol = ROLES.ESTUDIANTE;
+    let estado = 'aprobado';
     if (registraCoordinador) {
       rol = req.body.rol || ROLES.ESTUDIANTE;
       const permitidos = ROLES_ASIGNABLES[solicitante.rol];
       if (!permitidos.includes(rol)) {
         return res.status(400).json({ ok: false, message: `rol inválido. Valores permitidos: ${permitidos.join(', ')}` });
       }
+    } else if (req.body.rol != null) {
+      if (!Object.hasOwn(ROLES_PUBLICOS, req.body.rol)) {
+        return res.status(400).json({ ok: false, message: `rol inválido. Valores permitidos: ${Object.keys(ROLES_PUBLICOS).join(', ')}` });
+      }
+      rol = ROLES_PUBLICOS[req.body.rol];
+    }
+    // El profesor que se registra solo no entra hasta que un coordinador lo apruebe
+    if (!registraCoordinador && rol === ROLES.PROFESOR) {
+      estado = 'pendiente';
     }
 
     // Carrera y semestre del estudiante: definen qué materias puede ver e inscribir.
@@ -71,14 +87,16 @@ const registro = async (req, res, next) => {
 
     const hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      'INSERT INTO usuarios (cedula, nombre, correo, password, rol, carrera_id, semestre) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [cedula, nombre, correo, hash, rol, carreraId, semestreNum]
+      'INSERT INTO usuarios (cedula, nombre, correo, password, rol, carrera_id, semestre, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [cedula, nombre, correo, hash, rol, carreraId, semestreNum, estado]
     );
 
     res.status(201).json({
       ok: true,
-      message: 'Usuario registrado correctamente',
-      usuario: { id: result.insertId, cedula, nombre, correo, rol, carrera_id: carreraId, semestre: semestreNum },
+      message: estado === 'pendiente'
+        ? 'Solicitud enviada. Un coordinador debe aprobar tu cuenta antes de que puedas ingresar.'
+        : 'Usuario registrado correctamente',
+      usuario: { id: result.insertId, cedula, nombre, correo, rol, estado, carrera_id: carreraId, semestre: semestreNum },
     });
   } catch (error) {
     next(error);
