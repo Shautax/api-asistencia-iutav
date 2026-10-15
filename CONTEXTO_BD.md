@@ -10,8 +10,8 @@ Sistema de **control de asistencia y justificativos** del instituto IUTAV
 (NO maneja notas ni calificaciones).
 
 - **Profesor:** desde la app Android inicia una clase → se genera un **código QR** único.
-- **Estudiante:** escanea el QR con la app → queda **presente**. Debe estar en la red Wi-Fi
-  del instituto y estar inscrito en la materia.
+- **Estudiante:** escanea el QR con la app → queda **presente**. Debe estar físicamente en la sede
+  (su GPS dentro de la geocerca del instituto, calculado con la fórmula de Haversine) y estar inscrito en la materia.
 - **Profesor:** cierra la clase → los inscritos que no escanearon quedan **ausentes**
   y se les suma una falta.
 - **Estudiante:** puede enviar un **justificativo** (archivo + motivo) por una inasistencia;
@@ -94,7 +94,7 @@ Los estudiantes se inscriben por catálogo: solo en materias con `carrera_id` y 
 | clase_id | INT FK → clases.id | |
 | estudiante_id | INT FK → usuarios.id | |
 | estado | ENUM('presente','ausente','justificado') | |
-| ssid_validado | TINYINT(1) | 1 = registró desde la red Wi-Fi del instituto; 0 = fila de ausente creada al cerrar la clase |
+| ssid_validado | TINYINT(1) | 1 = el estudiante registró su asistencia escaneando el QR; 0 = fila de ausente creada al cerrar la clase (nombre heredado de la antigua validación por Wi-Fi) |
 Única por (clase_id, estudiante_id).
 
 ### `justificativos`
@@ -106,12 +106,19 @@ Los estudiantes se inscriben por catálogo: solo en materias con `carrera_id` y 
 | motivo | VARCHAR(255) NULL | ej. "Reposo médico - 48h" |
 | estado_revision | ENUM('pendiente','aprobado','rechazado') | |
 
-### `configuracion_red` — red Wi-Fi permitida para marcar asistencia (una sola fila, `id = 1`)
+### `configuracion_red` — geocerca (GPS) de la sede para marcar asistencia (una sola fila, `id = 1`)
 | Columna | Tipo | Notas |
 |---|---|---|
 | id | INT PK | siempre 1 |
-| ssid_permitido | VARCHAR(64) | el SSID que reporta la app debe coincidir (se ignoran comillas dobles, espacios y mayúsculas) |
-| ip_permitida | VARCHAR(45) | rango CIDR o IP de referencia; actualmente NO se valida al marcar asistencia (solo el SSID) |
+| latitud | DECIMAL(10,8) NULL | latitud del centro de la sede en grados decimales (−90 a 90). NULL = aún sin configurar |
+| longitud | DECIMAL(11,8) NULL | longitud del centro de la sede en grados decimales (−180 a 180). NULL = aún sin configurar |
+| radio_permitido | INT | radio de la geocerca en metros (por defecto 50) |
+
+Cómo se valida: la app envía las coordenadas GPS del estudiante al marcar asistencia y el backend calcula,
+con la **fórmula de Haversine**, la distancia en metros entre ese punto y (`latitud`, `longitud`).
+Si la distancia es **menor o igual** a `radio_permitido`, se acepta; si no, se rechaza.
+Ya **no** se valida la red Wi-Fi (SSID/IP).
+
 La edita el `coordinador_master` con `PUT /api/configuracion/red`; no hace falta tocarla a mano.
 
 ## Relaciones (resumen)
@@ -166,4 +173,5 @@ ORDER BY u.nombre, m.nombre;
 ## Datos actuales
 
 - Versión Beta: la base se reinició con `npm run reset-db` (14/10/2026). Todas las tablas están vacías
-  salvo `configuracion_red`, que tiene la red por defecto (`Wipod_Tesis` / `192.168.43.1`).
+  salvo `configuracion_red`, que tiene la fila `id = 1` con la geocerca por defecto
+  (`latitud`/`longitud` en NULL hasta que el coordinador master la configure, `radio_permitido` = 50 m).

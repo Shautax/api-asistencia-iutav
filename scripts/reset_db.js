@@ -36,7 +36,7 @@ async function reset() {
     console.log(`Tablas creadas (${creadas.length}): ${creadas.join(', ')}`);
 
     await connection.query(SQL_RED_POR_DEFECTO);
-    console.log("Red por defecto insertada en configuracion_red: 'Wipod_Tesis' / '192.168.43.1'");
+    console.log('Geocerca por defecto insertada en configuracion_red: sin coordenadas, radio de 50 m');
 
     console.log(`Base de datos '${DB_NAME}' reiniciada y vacía.`);
   } finally {

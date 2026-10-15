@@ -22,6 +22,17 @@ const columnasNuevas = [
   { tabla: 'usuarios', columna: 'semestre', definicion: 'TINYINT UNSIGNED NULL AFTER carrera_id' },
   // 'pendiente' = coordinador que pidió acceso desde el panel y aún no aprueba el master (no puede iniciar sesión)
   { tabla: 'usuarios', columna: 'estado', definicion: "ENUM('aprobado', 'pendiente') NOT NULL DEFAULT 'aprobado' AFTER semestre" },
+  // Geocerca de la sede (reemplaza la validación por red Wi-Fi)
+  { tabla: 'configuracion_red', columna: 'latitud', definicion: 'DECIMAL(10, 8) NULL AFTER id' },
+  { tabla: 'configuracion_red', columna: 'longitud', definicion: 'DECIMAL(11, 8) NULL AFTER latitud' },
+  { tabla: 'configuracion_red', columna: 'radio_permitido', definicion: 'INT NOT NULL DEFAULT 50 AFTER longitud' },
+];
+
+// Columnas que ya no se usan y se eliminan si existen
+const columnasEliminadas = [
+  // Validación por red Wi-Fi, reemplazada por el geocercado (GPS)
+  { tabla: 'configuracion_red', columna: 'ssid_permitido' },
+  { tabla: 'configuracion_red', columna: 'ip_permitida' },
 ];
 
 async function setup() {
@@ -46,6 +57,17 @@ async function setup() {
       if (existe.length === 0) {
         await connection.query(`ALTER TABLE ${tabla} ADD COLUMN ${columna} ${definicion}`);
         console.log(`Columna ${tabla}.${columna} agregada.`);
+      }
+    }
+
+    for (const { tabla, columna } of columnasEliminadas) {
+      const [existe] = await connection.query(
+        'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+        [DB_NAME, tabla, columna]
+      );
+      if (existe.length > 0) {
+        await connection.query(`ALTER TABLE ${tabla} DROP COLUMN ${columna}`);
+        console.log(`Columna ${tabla}.${columna} eliminada.`);
       }
     }
 

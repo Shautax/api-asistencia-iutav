@@ -103,17 +103,20 @@ const TABLAS = [
   },
   {
     nombre: 'configuracion_red',
-    // Red Wi-Fi desde la que se permite marcar asistencia (una sola fila, id = 1, la edita el coordinador master)
+    // Geocerca de la sede: centro (latitud/longitud) y radio en metros dentro del que se permite marcar
+    // asistencia (fórmula de Haversine). Una sola fila, id = 1, la edita el coordinador master.
+    // latitud/longitud quedan NULL hasta que el coordinador master configure la ubicación de la sede.
     sql: `CREATE TABLE IF NOT EXISTS configuracion_red (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      ssid_permitido VARCHAR(64) NOT NULL,
-      ip_permitida VARCHAR(45) NOT NULL
+      latitud DECIMAL(10, 8) NULL,
+      longitud DECIMAL(11, 8) NULL,
+      radio_permitido INT NOT NULL DEFAULT 50
     ) ENGINE=InnoDB`,
   },
 ];
 
-// Red por defecto; INSERT IGNORE no pisa la que ya haya configurado el coordinador master
-const SQL_RED_POR_DEFECTO =
-  "INSERT IGNORE INTO configuracion_red (id, ssid_permitido, ip_permitida) VALUES (1, 'Wipod_Tesis', '192.168.43.0/24')";
+// Fila única de la geocerca (sin coordenadas, radio de 50 m); INSERT IGNORE no pisa la que ya haya
+// configurado el coordinador master
+const SQL_RED_POR_DEFECTO = 'INSERT IGNORE INTO configuracion_red (id) VALUES (1)';
 
 module.exports = { TABLAS, SQL_RED_POR_DEFECTO };
