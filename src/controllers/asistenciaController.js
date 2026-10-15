@@ -1,35 +1,18 @@
 const { pool } = require('../config/db');
 const { LIMITE_FALTAS_AVISO } = require('../config/reglas');
 const { ROLES } = require('../config/roles');
+const { ipEnRango, normalizarIp } = require('../utils/ip');
 
 // Opcional: IPs o rangos CIDR IPv4 desde los que debe llegar la petición al servidor,
 // ej: INSTITUTE_IP=200.44.32.12,127.0.0.1,192.168.100.0/24. Si no se define, no se aplica este filtro.
 // El SSID y la IP de la red Wi-Fi se validan aparte contra configuracion_red (ver redMiddleware).
 const IPS_INSTITUTO = (process.env.INSTITUTE_IP || '').split(',').map((ip) => ip.trim()).filter(Boolean);
 
-const ipv4ANumero = (ip) => {
-  const partes = ip.split('.').map(Number);
-  if (partes.length !== 4 || partes.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) return null;
-  return ((partes[0] << 24) | (partes[1] << 16) | (partes[2] << 8) | partes[3]) >>> 0;
-};
-
-const ipPermitida = (ip) => IPS_INSTITUTO.length === 0 || IPS_INSTITUTO.some((entrada) => {
-  if (!entrada.includes('/')) return entrada === ip;
-  const [red, bitsTexto] = entrada.split('/');
-  const bits = Number(bitsTexto);
-  const ipNum = ipv4ANumero(ip);
-  const redNum = ipv4ANumero(red);
-  if (ipNum === null || redNum === null || !Number.isInteger(bits) || bits < 0 || bits > 32) return false;
-  const mascara = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
-  return (ipNum & mascara) === (redNum & mascara);
-});
+const ipPermitida = (ip) => IPS_INSTITUTO.length === 0 || IPS_INSTITUTO.some((entrada) => ipEnRango(ip, entrada));
 
 // req.ip ya toma en cuenta X-Forwarded-For cuando 'trust proxy' está configurado (ver TRUST_PROXY en index.js).
 // No se lee la cabecera directamente porque cualquier cliente puede falsificarla.
-const getClientIp = (req) => {
-  const ip = req.ip || req.socket.remoteAddress || '';
-  return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-};
+const getClientIp = (req) => normalizarIp(req.ip || req.socket.remoteAddress);
 
 const registrarAsistencia = async (req, res, next) => {
   try {

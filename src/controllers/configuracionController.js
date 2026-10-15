@@ -1,5 +1,6 @@
 const net = require('net');
 const { pool } = require('../config/db');
+const { esCidrIpv4 } = require('../utils/ip');
 
 // La configuración de red es una sola fila (id = 1), creada por setup_db.js
 const CONFIG_RED_ID = 1;
@@ -39,11 +40,14 @@ const actualizarConfiguracionRed = async (req, res, next) => {
     if (Buffer.byteLength(ssid_permitido, 'utf8') > MAX_BYTES_SSID) {
       return res.status(400).json({ ok: false, message: `El SSID no puede superar los ${MAX_BYTES_SSID} bytes` });
     }
-    if (!net.isIP(ip_permitida)) {
-      return res.status(400).json({ ok: false, message: 'ip_permitida no es una dirección IP válida' });
+    if (!net.isIP(ip_permitida) && !esCidrIpv4(ip_permitida)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'ip_permitida debe ser una IP o un rango CIDR IPv4 válido (ej. 192.168.43.0/24)',
+      });
     }
 
-    // Se guarda tal cual: la validación de asistencia compara de forma exacta
+    // Se guarda tal cual: redMiddleware comprueba que la IP del teléfono pertenezca al rango
     await pool.query(
       `INSERT INTO configuracion_red (id, ssid_permitido, ip_permitida) VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE ssid_permitido = VALUES(ssid_permitido), ip_permitida = VALUES(ip_permitida)`,

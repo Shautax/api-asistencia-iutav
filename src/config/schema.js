@@ -114,6 +114,6 @@ const TABLAS = [
 
 // Red por defecto; INSERT IGNORE no pisa la que ya haya configurado el coordinador master
 const SQL_RED_POR_DEFECTO =
-  "INSERT IGNORE INTO configuracion_red (id, ssid_permitido, ip_permitida) VALUES (1, 'Wipod_Tesis', '192.168.43.1')";
+  "INSERT IGNORE INTO configuracion_red (id, ssid_permitido, ip_permitida) VALUES (1, 'Wipod_Tesis', '192.168.43.0/24')";
 
 module.exports = { TABLAS, SQL_RED_POR_DEFECTO };

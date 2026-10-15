@@ -111,7 +111,7 @@ Los estudiantes se inscriben por catálogo: solo en materias con `carrera_id` y 
 |---|---|---|
 | id | INT PK | siempre 1 |
 | ssid_permitido | VARCHAR(64) | el SSID que reporta la app debe coincidir exactamente (distingue mayúsculas) |
-| ip_permitida | VARCHAR(45) | la IP que reporta la app debe coincidir exactamente |
+| ip_permitida | VARCHAR(45) | rango CIDR (ej. 192.168.43.0/24) al que debe pertenecer la IP que reporta la app; una IP sin máscara se compara exacta |
 La edita el `coordinador_master` con `PUT /api/configuracion/red`; no hace falta tocarla a mano.
 
 ## Relaciones (resumen)
