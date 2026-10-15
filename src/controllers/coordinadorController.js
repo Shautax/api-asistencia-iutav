@@ -5,6 +5,10 @@ const { ROLES, COORDINADORES } = require('../config/roles');
 
 const LARGO_MINIMO_PASSWORD = 6;
 
+// Roles que pueden quedar 'pendiente' y que el master aprueba o rechaza desde el panel:
+// coordinadores que pidieron acceso y profesores/estudiantes registrados desde la app
+const ROLES_SOLICITUD = [ROLES.COORDINADOR_CARRERA, ROLES.PROFESOR, ROLES.ESTUDIANTE];
+
 const CORREO_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Coordinador master: lista los coordinadores aprobados con la carrera que administran
@@ -226,8 +230,8 @@ const solicitarAcceso = async (req, res, next) => {
 const listarSolicitudes = async (req, res, next) => {
   try {
     const [solicitudes] = await pool.query(
-      "SELECT id, nombre, correo FROM usuarios WHERE estado = 'pendiente' AND rol = ? ORDER BY id",
-      [ROLES.COORDINADOR_CARRERA]
+      "SELECT id, cedula, nombre, correo, rol FROM usuarios WHERE estado = 'pendiente' AND rol IN (?) ORDER BY id",
+      [ROLES_SOLICITUD]
     );
     res.json({ ok: true, total: solicitudes.length, solicitudes });
   } catch (error) {
@@ -235,12 +239,33 @@ const listarSolicitudes = async (req, res, next) => {
   }
 };
 
-// Coordinador master: aprueba una solicitud asignándole la carrera que administrará
+// Coordinador master: aprueba una solicitud. Al coordinador de carrera se le asigna la carrera
+// que administrará (carrera_id obligatorio); profesores y estudiantes solo pasan a 'aprobado'.
 const aprobarSolicitud = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const carreraId = Number(req.body?.carrera_id);
 
+    const [solicitudes] = await pool.query(
+      "SELECT rol FROM usuarios WHERE id = ? AND estado = 'pendiente' AND rol IN (?)",
+      [id, ROLES_SOLICITUD]
+    );
+    if (solicitudes.length === 0) {
+      return res.status(404).json({ ok: false, message: 'La solicitud no existe o ya fue procesada' });
+    }
+    const { rol } = solicitudes[0];
+
+    if (rol !== ROLES.COORDINADOR_CARRERA) {
+      const [result] = await pool.query(
+        "UPDATE usuarios SET estado = 'aprobado' WHERE id = ? AND estado = 'pendiente' AND rol = ?",
+        [id, rol]
+      );
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ ok: false, message: 'La solicitud no existe o ya fue procesada' });
+      }
+      return res.json({ ok: true, message: rol === ROLES.PROFESOR ? 'Profesor aprobado' : 'Estudiante aprobado' });
+    }
+
+    const carreraId = Number(req.body?.carrera_id);
     if (!Number.isInteger(carreraId) || carreraId <= 0) {
       return res.status(400).json({ ok: false, message: 'carrera_id es obligatorio' });
     }
@@ -267,8 +292,8 @@ const aprobarSolicitud = async (req, res, next) => {
 const rechazarSolicitud = async (req, res, next) => {
   try {
     const [result] = await pool.query(
-      "DELETE FROM usuarios WHERE id = ? AND estado = 'pendiente' AND rol = ?",
-      [Number(req.params.id), ROLES.COORDINADOR_CARRERA]
+      "DELETE FROM usuarios WHERE id = ? AND estado = 'pendiente' AND rol IN (?)",
+      [Number(req.params.id), ROLES_SOLICITUD]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ ok: false, message: 'La solicitud no existe o ya fue procesada' });

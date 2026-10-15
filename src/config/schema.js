@@ -12,8 +12,8 @@ const TABLAS = [
   {
     nombre: 'usuarios',
     // carrera_id: carrera que cursa un estudiante o que administra un coordinador_carrera (NULL para el resto).
-    // semestre: solo estudiantes. estado 'pendiente' = coordinador que pidió acceso desde el panel
-    // y aún no aprueba el master (no puede iniciar sesión).
+    // semestre: solo estudiantes. estado 'pendiente' = coordinador que pidió acceso desde el panel o profesor
+    // registrado desde la app, que aún no aprueba el master (no puede iniciar sesión).
     sql: `CREATE TABLE IF NOT EXISTS usuarios (
       id INT AUTO_INCREMENT PRIMARY KEY,
       cedula VARCHAR(20) NULL UNIQUE,
